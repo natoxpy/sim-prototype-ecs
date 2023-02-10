@@ -1,3 +1,4 @@
+import { AssetsLoader } from "./assetsLoader";
 import { World } from "./world";
 
 export class System {

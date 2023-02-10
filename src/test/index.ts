@@ -1,39 +1,54 @@
-import { BoxGeometry, Euler, MeshBasicMaterial, MeshNormalMaterial, ShadowMaterial, Vector3 } from "three";
+import { AmbientLight, BoxGeometry, Euler, MeshNormalMaterial, PointLight, Scene, Vector3 } from "three";
 import { ECS } from "../dev/ecs";
-import { PrimitiveBundle, PrimitiveEntity } from "../dev/ecs/bundles/primitiveBundle";
-import { BasicMaterial, Geometry, Transform } from "../dev/ecs/components/Standard";
+import { PrimitiveBundle } from "../dev/ecs/bundles/primitiveBundle";
+import { Transform } from "../dev/ecs/components/Standard";
 import { System } from "../dev/ecs/core/system";
 import { World } from "../dev/ecs/core/world";
+import { Asset, AssetsLoader } from "../dev/ecs/core/assetsLoader";
+import { ModelBundle } from "../dev/ecs/bundles/ModelBundle";
 
 class SpawnOnStart extends System {
     public start(world: World): void {
         new PrimitiveBundle({
-            geometry: new Geometry(new BoxGeometry(0.3, 0.3, 0.3)),
-            material: new BasicMaterial(new MeshNormalMaterial()),
-            transform: new Transform(new Vector3(5, -0.3, 0), new Euler(-100))
-        }).spawn(world);
-
-        new PrimitiveBundle({
-            geometry: new Geometry(new BoxGeometry(0.3, 0.3, 0.3)),
-            material: new BasicMaterial(new MeshNormalMaterial()),
-            transform: new Transform(new Vector3(5, -2, 0), new Euler(-100))
+            geometry: new BoxGeometry(100, 100, 0.3),
+            material: new MeshNormalMaterial(),
+            transform: new Transform(new Vector3(0, 0, -30), new Euler())
         }).spawn(world);
     }
 }
 
-class MoverObjeto extends System {
-    public update({ entityManager }: World, timedelta: number): void {
-        for (let { component } of entityManager.for(PrimitiveEntity).query(Transform)) {
-            component.position.x -= 1 * timedelta;
-            component.rotate.x += 1 * timedelta;
-            component.rotate.z -= 1 * timedelta;
-        }
+
+class Load3DModel extends System {
+    addLights(scene: Scene) {
+        let light = new AmbientLight(0xffffff);
+        scene.add(light);
+        let point = new PointLight();
+        point.intensity = 10;
+        point.position.z += 10;
+        scene.add(point);
+    }
+
+    public start(world: World<Assets>): void {
+        this.addLights(world.scene);
+
+        new ModelBundle({
+            model: world.assets.car_model.use()
+        }).spawn(world);
     }
 }
 
-export function mainTest() {
-    new ECS()
+// ASSET LOADER 
+
+class Assets extends AssetsLoader {
+    car_model: Asset = new Asset("tmodel.glb");
+}
+
+export async function mainTest() {
+    let ecs = new ECS(Assets)
         .addStartupSystem(new SpawnOnStart())
-        .addSystem(new MoverObjeto())
-        .run();
+        .addStartupSystem(new Load3DModel());
+
+    let err = await ecs.run();
+    if (err != undefined)
+        console.log("execution ended before end time! \n", err);
 }
